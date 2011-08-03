@@ -5,7 +5,7 @@
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
--export([start_link/7, process_frame/2]).
+-export([start_link/10, process_frame/2]).
 
 -ifdef(debug).
 -export([parse_destination/1]).
@@ -60,8 +60,8 @@
 -include("rabbit_amqp1_0.hrl").
 
 %% TODO account for all these things
-start_link(Channel, ReaderPid, WriterPid, _Username, _VHost,
-           _Collector, _StartLimiterFun) ->
+start_link(Channel, ReaderPid, WriterPid, _ConnPid, _Protocol, _User, _VHost,
+           _Capabilities, _CollectorPid, _StartLimiterFun) ->
     gen_server2:start_link(
       ?MODULE, [Channel, ReaderPid, WriterPid], []).
 
@@ -155,7 +155,7 @@ handle_info(#'basic.credit_state'{consumer_tag = CTag,
                       available   = Available,
                       drain       = Drain },
     put({out, Handle}, Out#outgoing_link{ delivery_count = Count }),
-    rabbit_amqp1_0_writer:send_command(WriterPid, F),
+    rabbit_writer:send_command(WriterPid, F),
     {noreply, State};
 
 %% An acknowledgement from the queue.  To keep the incoming window
@@ -181,13 +181,13 @@ handle_info(#'basic.ack'{delivery_tag = DTag, multiple = Multiple},
         [] -> ok;
         _  -> D = acknowledgement(TransferIds,
                                   #'v1_0.disposition'{role = ?RECV_ROLE}),
-              rabbit_amqp1_0_writer:send_command(WriterPid, D)
+              rabbit_writer:send_command(WriterPid, D)
     end,
     HalfWindow = Window div 2,
     AckCounter1 = case (AckCounter + length(TransferIds)) of
                       Over when Over >= HalfWindow ->
                           F = flow_session_fields(State),
-                          rabbit_amqp1_0_writer:send_command(WriterPid, F),
+                          rabbit_writer:send_command(WriterPid, F),
                           Over - HalfWindow;
                       Counter ->
                           Counter
@@ -212,11 +212,11 @@ handle_cast({frame, Frame},
     try handle_control(Frame, State) of
         {reply, Replies, NewState} when is_list(Replies) ->
             lists:foreach(fun (Reply) ->
-                                  rabbit_amqp1_0_writer:send_command(Sock, Reply)
+                                  rabbit_writer:send_command(Sock, Reply)
                           end, Replies),
             noreply(NewState);
         {reply, Reply, NewState} ->
-            rabbit_amqp1_0_writer:send_command(Sock, Reply),
+            rabbit_writer:send_command(Sock, Reply),
             noreply(NewState);
         {noreply, NewState} ->
             noreply(NewState);
@@ -225,7 +225,7 @@ handle_cast({frame, Frame},
     catch exit:Reason = #'v1_0.error'{} ->
             %% TODO shut down nicely like rabbit_channel
             Close = #'v1_0.end'{ error = Reason },
-            ok = rabbit_amqp1_0_writer:send_command(Sock, Close),
+            ok = rabbit_writer:send_command(Sock, Close),
             {stop, normal, State};
           exit:normal ->
             {stop, normal, State};
@@ -440,7 +440,7 @@ handle_control(#'v1_0.detach'{ handle = Handle }, State) ->
     {reply, #'v1_0.detach'{ handle = Handle }, State};
 
 handle_control(#'v1_0.end'{}, _State = #session{ writer_pid = Sock }) ->
-    ok = rabbit_amqp1_0_writer:send_command(Sock, #'v1_0.end'{}),
+    ok = rabbit_writer:send_command(Sock, #'v1_0.end'{}),
     stop;
 
 %% Flow control.  These frames come with two pieces of information:
@@ -703,7 +703,7 @@ transfer(WriterPid, LinkHandle,
                                                         expected_outcome = DefaultOutcome },
                                                       Unsettled)
                          end,
-            rabbit_amqp1_0_writer:send_command(
+            rabbit_writer:send_command(
               WriterPid,
               [T | rabbit_amqp1_0_message:annotated_message(Msg)]),
             {NewLink, Session#session { outgoing_unsettled_map = Unsettled1 }};
