@@ -14,7 +14,8 @@
 %% TODO monitor declaring channel since we now don't reopen it if an error
 %% occurs (or with_sacrificial_channel() ala federation)
 
--record(state, {backing_connection, backing_channel,
+-record(state, {channel_num, %% we just use the incoming (AMQP 1.0) channel number
+                backing_connection, backing_channel,
                 declaring_channel, %% a sacrificial client channel for declaring things
                 reader_pid, writer_pid, session}).
 
@@ -43,16 +44,16 @@ init([Channel, ReaderPid, WriterPid, #user{username = Username}, VHost]) ->
                                        virtual_host = <<"/">>}),
     {ok, Ch} = amqp_connection:open_channel(Conn),
     {ok, Ch2} = amqp_connection:open_channel(Conn),
-    {ok, #state{backing_connection     = Conn,
-                backing_channel        = Ch,
-                declaring_channel      = Ch2,
-                reader_pid             = ReaderPid,
-                writer_pid             = WriterPid,
-                session = #session{ channel_num            = Channel,
-                                    next_publish_id        = 0,
-                                    ack_counter            = 0,
-                                    incoming_unsettled_map = gb_trees:empty(),
-                                    outgoing_unsettled_map = gb_trees:empty()}
+    {ok, #state{backing_connection = Conn,
+                backing_channel    = Ch,
+                declaring_channel  = Ch2,
+                reader_pid         = ReaderPid,
+                writer_pid         = WriterPid,
+                channel_num        = Channel,
+                session = #session{next_publish_id        = 0,
+                                   ack_counter            = 0,
+                                   incoming_unsettled_map = gb_trees:empty(),
+                                   outgoing_unsettled_map = gb_trees:empty()}
                }}.
 
 terminate(_Reason, _State = #state{ backing_connection = Conn,
@@ -135,7 +136,7 @@ handle_info(#'basic.ack'{delivery_tag = DTag, multiple = Multiple},
 %% TODO these pretty much copied wholesale from rabbit_channel
 handle_info({'EXIT', WriterPid, Reason = {writer, send_failed, _Error}},
             State = #state{writer_pid = WriterPid}) ->
-    State#state.reader_pid ! {channel_exit, State#state.session#session.channel_num, Reason},
+    State#state.reader_pid ! {channel_exit, State#state.channel_num, Reason},
     {stop, normal, State};
 handle_info({'EXIT', _Pid, Reason}, State) ->
     {stop, Reason, State};
@@ -220,9 +221,9 @@ handle_control(#'v1_0.begin'{next_outgoing_id = {uint, RemoteNextIn},
                              handle_max = HandleMax0},
                State = #state{
                  backing_channel = AmqpChannel,
+                 channel_num     = Channel,
                  session = Session = #session{
-                             next_transfer_number = LocalNextOut,
-                             channel_num = Channel}}) ->
+                             next_transfer_number = LocalNextOut}}) ->
     Window =
         case RemoteInWindow of
             {uint, Size} -> Size;
