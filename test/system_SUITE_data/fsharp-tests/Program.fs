@@ -1,4 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
+﻿// Learn more about F# at https://fsharp.org
 
 open System
 open System.Threading

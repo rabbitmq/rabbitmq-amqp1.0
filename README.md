@@ -17,7 +17,7 @@ This plugin supports 0-9-1 and 1.0 client interoperability with certain limitati
 This plugin ships with modern versions of RabbitMQ.
 
 It will listen on the standard AMQP port, 5672. To reconfigure this,
-do so [as you would for 0-9-1](http://www.rabbitmq.com/configure.html). Clients connecting with 0-9-1
+do so [as you would for 0-9-1](https://www.rabbitmq.com/configure.html). Clients connecting with 0-9-1
 will continue to work on the same port.
 
 The following two configuration options (which are specific to the AMQP 1.0 adapter)
@@ -75,11 +75,11 @@ We have tested against:
    connecting to Azure; it does not seem to be possible to get it to
    connect to another server.
 
-[1] http://www.swiftmq.com/products/router/swiftlets/sys_amqp/client/index.html
+[1] https://www.swiftmq.com/products/router/swiftlets/sys_amqp/client/index.html
 
-[2] http://qpid.apache.org/proton/
+[2] https://qpid.apache.org/proton/
 
-[3] http://www.windowsazure.com/en-us/develop/net/how-to-guides/service-bus-amqp/
+[3] https://www.windowsazure.com/en-us/develop/net/how-to-guides/service-bus-amqp/
 
 As new clients appear we will of course work on interoperability with them.
 
