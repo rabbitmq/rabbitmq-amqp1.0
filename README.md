@@ -1,5 +1,12 @@
 # AMQP 1.0 support for RabbitMQ
 
+## This was migrated to https://github.com/rabbitmq/rabbitmq-server
+
+This repository has been moved to the main unified RabbitMQ "monorepo", including all open issues. You can find the source under [/deps/rabbitmq_amqp1_0](https://github.com/rabbitmq/rabbitmq-server/tree/master/deps/rabbitmq_amqp1_0).
+All issues have been transferred.
+
+## Overview
+
 This plugin adds AMQP 1.0 support to RabbitMQ.
 
 Despite the name,
